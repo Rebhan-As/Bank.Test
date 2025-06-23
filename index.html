@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aplikasi Kasir Toko - Rekap Harian + Admin</title>
+    <title>Aplikasi Kasir Toko - Rekap Harian</title>
     <!-- Memuat Tailwind CSS untuk styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Memuat Google Fonts: Inter -->
@@ -35,7 +35,7 @@
 <body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
 
     <!-- Kontainer Utama Aplikasi -->
-    <div class="w-full max-w-lg bg-white rounded-2xl shadow-xl p-6 md:p-8 space-y-6">
+    <div class="w-full max-w-2xl bg-white rounded-2xl shadow-xl p-6 md:p-8 space-y-6">
         
         <!-- Judul Aplikasi -->
         <header class="text-center">
@@ -43,34 +43,42 @@
             <p class="text-gray-500 mt-1">Catat total transaksi setor, tarik, dan biaya admin</p>
         </header>
 
-        <!-- Tampilan Total Harian -->
-        <div class="space-y-4 text-center">
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div class="bg-green-100 text-green-800 rounded-xl p-4 shadow">
-                    <h2 class="text-sm font-medium text-green-600">TOTAL SETOR HARI INI</h2>
-                    <p id="totalDepositToday" class="text-2xl md:text-3xl font-bold tracking-tight mt-1">Rp 0,00</p>
-                </div>
-                <div class="bg-red-100 text-red-800 rounded-xl p-4 shadow">
-                    <h2 class="text-sm font-medium text-red-600">TOTAL TARIK HARI INI</h2>
-                    <p id="totalWithdrawalToday" class="text-2xl md:text-3xl font-bold tracking-tight mt-1">Rp 0,00</p>
-                </div>
+        <!-- Tampilan Detail Harian -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center pt-4">
+            <div class="bg-green-100 text-green-800 rounded-xl p-4 shadow">
+                <h2 class="text-sm font-medium text-green-600">TOTAL SETORAN</h2>
+                <p id="totalDepositToday" class="text-2xl md:text-3xl font-bold tracking-tight mt-1">Rp 0,00</p>
             </div>
-             <div class="bg-blue-100 text-blue-800 rounded-xl p-4 shadow">
-                <h2 class="text-sm font-medium text-blue-600">TOTAL BIAYA ADMIN HARI INI</h2>
+             <div class="bg-red-100 text-red-800 rounded-xl p-4 shadow">
+                <h2 class="text-sm font-medium text-red-600">TOTAL TARIKAN</h2>
+                <p id="totalWithdrawalToday" class="text-2xl md:text-3xl font-bold tracking-tight mt-1">Rp 0,00</p>
+            </div>
+            <div class="bg-blue-100 text-blue-800 rounded-xl p-4 shadow">
+                <h2 class="text-sm font-medium text-blue-600">TOTAL BIAYA ADMIN</h2>
                 <p id="totalAdminFeeToday" class="text-2xl md:text-3xl font-bold tracking-tight mt-1">Rp 0,00</p>
             </div>
         </div>
 
-
         <!-- Form Transaksi -->
-        <div class="space-y-4">
+        <div class="border-t border-gray-200 pt-6 space-y-4">
             <div>
                 <label for="amount" class="block text-sm font-medium text-gray-700 mb-1">Jumlah Transaksi</label>
                 <div class="relative">
                     <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                         <span class="text-gray-500 sm:text-sm">Rp</span>
                     </div>
-                    <input type="number" id="amount" name="amount" class="block w-full rounded-md border-gray-300 pl-10 pr-4 py-3 text-lg focus:border-indigo-500 focus:ring-indigo-500" placeholder="0">
+                    <input type="number" id="amount" name="amount" class="block w-full rounded-md border-gray-300 pl-10 pr-4 py-3 text-lg focus:border-indigo-500 focus:ring-indigo-500" placeholder="0" required>
+                </div>
+            </div>
+            
+            <!-- Input Biaya Admin Manual -->
+            <div>
+                <label for="adminFee" class="block text-sm font-medium text-gray-700 mb-1">Biaya Admin (Wajib Diisi)</label>
+                <div class="relative">
+                    <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                        <span class="text-gray-500 sm:text-sm">Rp</span>
+                    </div>
+                    <input type="number" id="adminFee" name="adminFee" class="block w-full rounded-md border-gray-300 pl-10 pr-4 py-3 text-lg focus:border-indigo-500 focus:ring-indigo-500" placeholder="Contoh: 5000" required>
                 </div>
             </div>
 
@@ -94,7 +102,6 @@
         <div class="border-t border-gray-200 pt-6">
             <h3 class="text-lg font-semibold text-gray-800 mb-4 text-center">Riwayat Semua Transaksi</h3>
             <div id="historyList" class="max-h-64 overflow-y-auto space-y-3 pr-2">
-                <!-- Riwayat akan ditambahkan di sini oleh JavaScript -->
                  <p id="noHistory" class="text-center text-gray-500">Belum ada transaksi.</p>
             </div>
         </div>
@@ -107,14 +114,14 @@
         const totalWithdrawalTodayEl = document.getElementById('totalWithdrawalToday');
         const totalAdminFeeTodayEl = document.getElementById('totalAdminFeeToday');
         const amountInput = document.getElementById('amount');
+        const adminFeeInput = document.getElementById('adminFee');
         const depositBtn = document.getElementById('depositBtn');
         const withdrawBtn = document.getElementById('withdrawBtn');
         const historyListEl = document.getElementById('historyList');
-        const noHistoryEl = document.getElementById('noHistory');
         const errorMessageEl = document.getElementById('errorMessage');
 
         // --- STATE APLIKASI ---
-        let transactions = []; // Menyimpan semua transaksi
+        let transactions = [];
 
         // --- FUNGSI FORMAT MATA UANG ---
         function formatCurrency(amount) {
@@ -144,7 +151,6 @@
 
         // --- FUNGSI UTAMA UNTUK MEMPERBARUI UI ---
         function updateUI() {
-            // 1. Hitung total harian
             let totalDepositToday = 0;
             let totalWithdrawalToday = 0;
             let totalAdminFeeToday = 0;
@@ -160,16 +166,14 @@
                 }
             });
             
-            // 2. Perbarui tampilan total harian
+            // Perbarui tampilan rincian
             totalDepositTodayEl.textContent = formatCurrency(totalDepositToday);
             totalWithdrawalTodayEl.textContent = formatCurrency(totalWithdrawalToday);
             totalAdminFeeTodayEl.textContent = formatCurrency(totalAdminFeeToday);
 
-
-            // 3. Kosongkan riwayat transaksi yang ada
+            // Perbarui riwayat transaksi
             historyListEl.innerHTML = '';
             
-            // 4. Tampilkan kembali semua riwayat transaksi dari data terbaru
             if (transactions.length === 0) {
                  historyListEl.innerHTML = '<p id="noHistory" class="text-center text-gray-500">Belum ada transaksi.</p>';
             } else {
@@ -193,7 +197,6 @@
                             <p class="text-xs text-gray-400">Biaya Admin: ${formattedAdminFee}</p>
                         </div>
                     `;
-
                     historyListEl.appendChild(historyItem);
                 });
             }
@@ -202,16 +205,20 @@
         // --- FUNGSI UNTUK MENANGANI TRANSAKSI ---
         function handleTransaction(type) {
             const amount = parseFloat(amountInput.value);
+            const adminFee = parseFloat(adminFeeInput.value);
 
+            // Validasi 1: Jumlah transaksi harus valid
             if (isNaN(amount) || amount <= 0) {
-                showError('Silakan masukkan jumlah yang valid.');
+                showError('Silakan masukkan jumlah transaksi yang valid.');
                 return;
             }
             
-            // Hitung biaya admin berdasarkan aturan
-            const adminFee = amount > 100000 ? 5000 : 6000;
+            // Validasi 2: Biaya admin harus diisi dan lebih besar dari nol
+            if (isNaN(adminFee) || adminFee <= 0) {
+                showError('Biaya admin harus diisi dan lebih besar dari nol.');
+                return;
+            }
             
-            // Tambahkan transaksi ke riwayat
             const newTransaction = {
                 type: type,
                 amount: amount,
@@ -220,23 +227,15 @@
             };
             transactions.push(newTransaction);
 
-            // Perbarui UI
             updateUI();
-
-            // Kosongkan input
+            
             amountInput.value = '';
+            adminFeeInput.value = '';
         }
 
         // --- EVENT LISTENERS ---
         depositBtn.addEventListener('click', () => handleTransaction('setor'));
         withdrawBtn.addEventListener('click', () => handleTransaction('tarik'));
-
-        amountInput.addEventListener('keyup', function(event) {
-            if (event.key === 'Enter') {
-                event.preventDefault();
-                depositBtn.click();
-            }
-        });
 
         // --- INISIALISASI ---
         window.onload = updateUI;
@@ -244,3 +243,4 @@
 
 </body>
 </html>
+
