@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aplikasi Kasir Online - Lengkap & Final</title>
+    <title>Aplikasi Kasir Online - Lengkap</title>
     <!-- Memuat Tailwind CSS untuk styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Memuat Google Fonts: Inter -->
@@ -26,7 +26,6 @@
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         input[type="date"]::-webkit-calendar-picker-indicator { cursor: pointer; opacity: 0.6; filter: invert(0.5); }
-        input[type="date"]:hover::-webkit-calendar-picker-indicator { opacity: 1; }
     </style>
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
@@ -76,24 +75,11 @@
         <div id="loading" class="flex flex-col items-center justify-center p-8"><div class="loader"></div><p class="text-gray-500 mt-4">Menghubungkan ke database online...</p></div>
     </div>
 
-    <!-- Modal Konfirmasi -->
-    <div id="confirmationModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-2xl shadow-xl p-6 md:p-8 w-full max-w-md space-y-4">
-            <h3 class="text-xl font-bold text-gray-800 text-center">Konfirmasi Transaksi</h3>
-            <div class="border-t border-b border-gray-200 py-4 space-y-2">
-                <div class="flex justify-between"><span class="text-gray-500">Tipe:</span><strong id="confirmType" class="font-semibold text-gray-900"></strong></div>
-                <div class="flex justify-between"><span class="text-gray-500">Sumber:</span><strong id="confirmSource" class="font-semibold text-gray-900"></strong></div>
-                <div class="flex justify-between"><span class="text-gray-500">Jumlah:</span><strong id="confirmAmount" class="font-semibold text-gray-900"></strong></div>
-                <div class="flex justify-between"><span class="text-gray-500">Keterangan:</span><strong id="confirmDescription" class="font-semibold text-gray-900 text-right truncate"></strong></div>
-                <div class="flex justify-between"><span class="text-gray-500">Biaya Admin:</span><strong id="confirmAdminFee" class="font-semibold text-gray-900"></strong></div>
-            </div>
-            <div class="grid grid-cols-2 gap-4">
-                <button id="cancelBtnModal" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-4 rounded-lg">Batal</button>
-                <button id="confirmBtnModal" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg">Konfirmasi & Simpan</button>
-            </div>
-        </div>
-    </div>
-    
+    <!-- Semua Modal -->
+    <div id="confirmationModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"></div>
+    <div id="editModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"></div>
+    <div id="deleteConfirmationModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"></div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -130,67 +116,47 @@
             adminFeeToggle: document.getElementById("adminFeeToggle"),
             adminFeeWrapper: document.getElementById("adminFeeWrapper"),
             confirmationModal: document.getElementById("confirmationModal"),
-            confirmType: document.getElementById("confirmType"),
-            confirmSource: document.getElementById("confirmSource"),
-            confirmAmount: document.getElementById("confirmAmount"),
-            confirmDescription: document.getElementById("confirmDescription"),
-            confirmAdminFee: document.getElementById("confirmAdminFee"),
-            cancelBtnModal: document.getElementById("cancelBtnModal"),
-            confirmBtnModal: document.getElementById("confirmBtnModal"),
+            editModal: document.getElementById("editModal"),
+            deleteConfirmationModal: document.getElementById("deleteConfirmationModal"),
             exportBtn: document.getElementById('exportBtn'),
             dateFilter: document.getElementById('dateFilter'),
             resetFilterBtn: document.getElementById('resetFilterBtn'),
         };
 
-        let db, transactionsCollection, allTransactions = [], pendingTransaction, currentTransactionType = 'setor';
+        let db, transactionsCollection, allTransactions = [], pendingTransaction, currentTransactionType = 'setor', transactionToEdit, transactionToDelete;
 
         function formatCurrency(e){return new Intl.NumberFormat("id-ID",{style:"currency",currency:"IDR",minimumFractionDigits:0}).format(e)}
         function isToday(e){if(!e)return!1;const t=e.toDate(),n=new Date;return t.getDate()===n.getDate()&&t.getMonth()===n.getMonth()&&t.getFullYear()===n.getFullYear()}
         function showError(e){dom.errorMessage.textContent=e,dom.errorMessage.classList.remove("hidden"),setTimeout(()=>{dom.errorMessage.classList.add("hidden")},4e3)}
         
+        // --- TEMPLATE UNTUK MODAL ---
+        const sourceOptionsHTML = `<option>Uang Tunai</option><option>BRI</option><option>BCA</option><option>Seabank</option><option>Dana</option><option>Gopay</option><option>Digipos</option><option>Order Quota</option><option>Simpel</option>`;
+        dom.confirmationModal.innerHTML = `<div class="bg-white rounded-2xl shadow-xl p-6 md:p-8 w-full max-w-md space-y-4"><h3 class="text-xl font-bold text-gray-800 text-center">Konfirmasi Transaksi</h3><div class="border-t border-b border-gray-200 py-4 space-y-2"><div class="flex justify-between"><span class="text-gray-500">Tipe:</span><strong id="confirmType" class="font-semibold text-gray-900"></strong></div><div class="flex justify-between"><span class="text-gray-500">Sumber:</span><strong id="confirmSource" class="font-semibold text-gray-900"></strong></div><div class="flex justify-between"><span class="text-gray-500">Jumlah:</span><strong id="confirmAmount" class="font-semibold text-gray-900"></strong></div><div class="flex justify-between"><span class="text-gray-500">Keterangan:</span><strong id="confirmDescription" class="font-semibold text-gray-900 text-right truncate"></strong></div><div class="flex justify-between"><span class="text-gray-500">Biaya Admin:</span><strong id="confirmAdminFee" class="font-semibold text-gray-900"></strong></div></div><div class="grid grid-cols-2 gap-4"><button id="cancelBtnModal" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-4 rounded-lg">Batal</button><button id="confirmBtnModal" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg">Konfirmasi & Simpan</button></div></div>`;
+        dom.editModal.innerHTML = `<div class="bg-white rounded-2xl shadow-xl p-6 md:p-8 w-full max-w-md space-y-4"><h3 class="text-xl font-bold text-gray-800 text-center">Edit Transaksi</h3><form id="editForm" class="space-y-4"><div><label for="editSourceSelect" class="block text-sm font-medium text-gray-700">Sumber</label><select id="editSourceSelect" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">${sourceOptionsHTML}</select></div><div><label for="editAmount" class="block text-sm font-medium text-gray-700">Jumlah</label><input type="number" id="editAmount" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required></div><div><label for="editDescription" class="block text-sm font-medium text-gray-700">Keterangan</label><input type="text" id="editDescription" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required></div><div><label for="editAdminFee" class="block text-sm font-medium text-gray-700">Biaya Admin</label><input type="number" id="editAdminFee" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required></div></form><div class="grid grid-cols-2 gap-4"><button id="cancelEditBtn" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-4 rounded-lg">Batal</button><button id="saveEditBtn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg">Simpan Perubahan</button></div></div>`;
+        dom.deleteConfirmationModal.innerHTML = `<div class="bg-white rounded-2xl shadow-xl p-6 md:p-8 w-full max-w-md space-y-4"><h3 class="text-xl font-bold text-red-600 text-center">Anda Yakin?</h3><p class="text-center text-gray-600">Anda akan menghapus transaksi ini secara permanen. Aksi ini tidak bisa dibatalkan.</p><div id="deleteDetail" class="text-sm text-center text-gray-500 border-t border-b py-2"></div><div class="grid grid-cols-2 gap-4"><button id="cancelDeleteBtn" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-4 rounded-lg">Batal</button><button id="confirmDeleteBtn" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg">Hapus Permanen</button></div></div>`;
+
         function updateUI(transactions) {
-            allTransactions = transactions; 
-
-            const selectedDate = dom.dateFilter.value;
-            let filteredTransactions = allTransactions;
-            
-            if (selectedDate) {
-                filteredTransactions = allTransactions.filter(trx => {
-                    if (!trx.createdAt) return false;
-                    const trxDate = trx.createdAt.toDate().toISOString().slice(0, 10);
-                    return trxDate === selectedDate;
-                });
-            }
-
-            let t=0,n=0,o=0;allTransactions.forEach(e=>{isToday(e.createdAt)&&("setor"===e.type?t+=e.amount:n+=e.amount,o+=e.adminFee)}),dom.totalDepositToday.textContent=formatCurrency(t),dom.totalWithdrawalToday.textContent=formatCurrency(n),dom.totalAdminFeeToday.textContent=formatCurrency(o),dom.historyList.innerHTML="",0===filteredTransactions.length?dom.historyList.innerHTML='<p class="text-center text-gray-500">Tidak ada transaksi untuk filter ini.</p>':filteredTransactions.forEach(e=>{const t=e.createdAt.toDate(),n=e.source?`<p class="text-sm text-gray-500">Sumber: <strong>${e.source}</strong></p>`:"",o=`<div class="flex justify-between items-start bg-gray-50 p-3 rounded-lg"><div class="flex-grow"><p class="font-semibold capitalize">${e.type} Tunai</p><p class="text-sm italic text-gray-600">${e.description||""}</p>${n}<p class="text-xs text-gray-500 mt-1">${t.toLocaleString("id-ID",{dateStyle:"full",timeStyle:"short"})}</p></div><div class="text-right flex-shrink-0 ml-4"><p class="font-semibold ${"setor"===e.type?"text-green-600":"text-red-600"}">${"setor"===e.type?"+":"-"} ${formatCurrency(e.amount)}</p>${e.adminFee>0?`<p class="text-xs text-gray-400">Biaya Admin: ${formatCurrency(e.adminFee)}</p>`:""}</div></div>`;dom.historyList.insertAdjacentHTML("beforeend",o)})}
+            allTransactions=transactions;
+            const t=dom.dateFilter.value;let n=allTransactions;
+            if(t){n=allTransactions.filter(e=>{if(!e.createdAt)return!1;return e.createdAt.toDate().toISOString().slice(0,10)===t})}
+            let o=0,a=0,r=0;allTransactions.forEach(e=>{isToday(e.createdAt)&&("setor"===e.type?o+=e.amount:a+=e.amount,r+=e.adminFee)}),
+            dom.totalDepositToday.textContent=formatCurrency(o),dom.totalWithdrawalToday.textContent=formatCurrency(a),dom.totalAdminFeeToday.textContent=formatCurrency(r),
+            dom.historyList.innerHTML="",0===n.length?dom.historyList.innerHTML='<p class="text-center text-gray-500">Tidak ada transaksi untuk filter ini.</p>':n.forEach(e=>{const t=e.createdAt.toDate(),n=e.source?`<p class="text-sm text-gray-500">Sumber: <strong>${e.source}</strong></p>`:"",o=`<div class="flex justify-between items-start bg-gray-50 p-3 rounded-lg"><div class="flex-grow"><p class="font-semibold capitalize">${e.type} Tunai</p><p class="text-sm italic text-gray-600">${e.description||""}</p>${n}<p class="text-xs text-gray-500 mt-1">${t.toLocaleString("id-ID",{dateStyle:"full",timeStyle:"short"})}</p></div><div class="text-right flex-shrink-0 ml-4"><p class="font-semibold ${"setor"===e.type?"text-green-600":"text-red-600"}">${"setor"===e.type?"+":"-"} ${formatCurrency(e.amount)}</p>${e.adminFee>0?`<p class="text-xs text-gray-400">Biaya Admin: ${formatCurrency(e.adminFee)}</p>`:""}</div><div class="flex flex-col space-y-2 ml-4"><button class="edit-btn p-1 text-blue-500 hover:text-blue-700" data-id="${e.id}"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg></button><button class="delete-btn p-1 text-red-500 hover:text-red-700" data-id="${e.id}"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" /></svg></button></div></div>`;dom.historyList.insertAdjacentHTML("beforeend",o)})}
         
-        function showConfirmation(e){pendingTransaction=e;const t=e.type.charAt(0).toUpperCase()+e.type.slice(1);dom.confirmType.textContent=`${t} Tunai`,dom.confirmSource.textContent=e.source,dom.confirmAmount.textContent=formatCurrency(e.amount),dom.confirmDescription.textContent=e.description,dom.confirmAdminFee.textContent=formatCurrency(e.adminFee),dom.confirmationModal.classList.remove("hidden")}
-        async function saveTransaction(){if(!pendingTransaction)return;dom.depositBtn.disabled=!0,dom.withdrawBtn.disabled=!0,dom.confirmBtnModal.disabled=!0,dom.confirmBtnModal.textContent="Menyimpan...";try{await addDoc(transactionsCollection,pendingTransaction),dom.transactionForm.reset(),dom.adminFeeWrapper.classList.add("hidden"),setTransactionMode("setor"),dom.amountInput.focus()}catch(e){console.error("Error: ",e),showError("Gagal menyimpan. Cek koneksi.")}finally{dom.confirmationModal.classList.add("hidden"),dom.depositBtn.disabled=!1,dom.withdrawBtn.disabled=!1,dom.confirmBtnModal.disabled=!1,dom.confirmBtnModal.textContent="Konfirmasi & Simpan",pendingTransaction=null}}
+        function showConfirmation(e){pendingTransaction=e;const t=e.type.charAt(0).toUpperCase()+e.type.slice(1);dom.confirmationModal.querySelector("#confirmType").textContent=`${t} Tunai`;dom.confirmationModal.querySelector("#confirmSource").textContent=e.source;dom.confirmationModal.querySelector("#confirmAmount").textContent=formatCurrency(e.amount);dom.confirmationModal.querySelector("#confirmDescription").textContent=e.description;dom.confirmationModal.querySelector("#confirmAdminFee").textContent=formatCurrency(e.adminFee);dom.confirmationModal.classList.remove("hidden")}
+        async function saveTransaction(){if(!pendingTransaction)return;dom.depositBtn.disabled=!0;dom.withdrawBtn.disabled=!0;dom.confirmationModal.querySelector("#confirmBtnModal").disabled=!0;dom.confirmationModal.querySelector("#confirmBtnModal").textContent="Menyimpan...";try{await addDoc(transactionsCollection,pendingTransaction);dom.transactionForm.reset();dom.adminFeeWrapper.classList.add("hidden");setTransactionMode("setor");dom.amountInput.focus()}catch(e){console.error("Error: ",e),showError("Gagal menyimpan. Cek koneksi.")}finally{dom.confirmationModal.classList.add("hidden");dom.depositBtn.disabled=!1;dom.withdrawBtn.disabled=!1;dom.confirmationModal.querySelector("#confirmBtnModal").disabled=!1;dom.confirmationModal.querySelector("#confirmBtnModal").textContent="Konfirmasi & Simpan";pendingTransaction=null}}
         function prepareTransaction(e){const t=parseFloat(dom.amountInput.value),n=dom.descriptionInput.value.trim(),o=document.querySelector('input[name="useAdminFee"]:checked').value,a=dom.sourceSelect.value;let r=0;if(isNaN(t)||t<=0)return void showError("Jumlah transaksi harus valid.");if(!n)return void showError("Keterangan wajib diisi.");if("iya"===o){const e=parseFloat(dom.adminFeeInput.value);if(isNaN(e)||e<=0)return void showError('Jika "Iya", biaya admin wajib diisi dan lebih dari nol.');r=e}const i={type:e,amount:t,description:n,adminFee:r,source:a,createdAt:serverTimestamp()};showConfirmation(i)}
         function setTransactionMode(e){currentTransactionType=e;const t=document.getElementById("sourceWrapper").querySelector("label");"setor"===e?t.textContent="Sumber Setoran":t.textContent="Sumber Tarik Tunai"}
         
-        function exportToCSV() {
-            const selectedDate = dom.dateFilter.value;
-            let dataToExport = allTransactions;
-            if (selectedDate) {
-                dataToExport = allTransactions.filter(trx => {
-                    if (!trx.createdAt) return false;
-                    return trx.createdAt.toDate().toISOString().slice(0, 10) === selectedDate;
-                });
-            }
-            if (dataToExport.length === 0) { showError("Tidak ada data untuk diexport pada filter ini."); return; }
-            const headers=["Tanggal","Waktu","Tipe","Sumber","Jumlah","Biaya Admin","Keterangan"];
-            const rows=dataToExport.map(e=>{const t=e.createdAt.toDate(),n=t.toLocaleDateString("id-ID",{day:"2-digit",month:"2-digit",year:"numeric"}),o=t.toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"}),a=`"${(e.description||"").replace(/"/g,'""')}"`;return[n,o,e.type,e.source||"",e.amount,e.adminFee,a].join(";")});
-            const csvContent=[headers.join(";"),...rows].join("\n");
-            const bom = "\uFEFF";
-            const blob=new Blob([bom + csvContent],{type:"text/csv;charset=utf-8;"});
-            const link=document.createElement("a"),url=URL.createObjectURL(blob);link.setAttribute("href",url);
-            const filenameDate = selectedDate ? selectedDate : new Date().toISOString().slice(0, 10);
-            link.setAttribute("download", `Riwayat_Transaksi_${filenameDate}.csv`);
-            link.style.visibility="hidden";document.body.appendChild(link);link.click();document.body.removeChild(link);
-        }
+        function openEditModal(e){transactionToEdit=e;dom.editModal.querySelector("#editSourceSelect").value=e.source;dom.editModal.querySelector("#editAmount").value=e.amount;dom.editModal.querySelector("#editDescription").value=e.description;dom.editModal.querySelector("#editAdminFee").value=e.adminFee;dom.editModal.classList.remove("hidden")}
+        async function saveEdit(){if(!transactionToEdit)return;const e=parseFloat(dom.editModal.querySelector("#editAmount").value),t=dom.editModal.querySelector("#editDescription").value.trim(),n=parseFloat(dom.editModal.querySelector("#editAdminFee").value),o=dom.editModal.querySelector("#editSourceSelect").value;if(isNaN(e)||e<=0)return void showError("Jumlah pada form edit harus valid.");if(!t)return void showError("Keterangan pada form edit wajib diisi.");if(isNaN(n)||n<0)return void showError("Biaya admin pada form edit harus valid.");const a=doc(db,"transactions",transactionToEdit.id),r={amount:e,description:t,adminFee:n,source:o};try{await updateDoc(a,r);dom.editModal.classList.add("hidden");transactionToEdit=null}catch(e){console.error("Error update:",e),showError("Gagal menyimpan perubahan.")}}
         
-        async function initialize(){if(!firebaseConfig.apiKey)return void(dom.loading.innerHTML='<p class="text-red-500 font-semibold text-center">KONFIGURASI FIREBASE KOSONG.</p>');try{const e=initializeApp(firebaseConfig),t=getAuth(e);db=getFirestore(e),await signInAnonymously(t),transactionsCollection=collection(db,"transactions");const n=query(transactionsCollection,orderBy("createdAt","desc"));onSnapshot(n,e=>{const t=e.docs.map(e=>({id:e.id,...e.data()}));updateUI(t),dom.loading.classList.add("hidden"),dom.mainContent.classList.remove("hidden")}),dom.depositBtn.addEventListener("click",()=>{setTransactionMode("setor"),prepareTransaction("setor")}),dom.withdrawBtn.addEventListener("click",()=>{setTransactionMode("tarik"),prepareTransaction("tarik")}),dom.transactionForm.addEventListener("submit",e=>{e.preventDefault(),prepareTransaction(currentTransactionType)}),dom.adminFeeToggle.addEventListener("change",e=>{e.target.value==="iya"?dom.adminFeeWrapper.classList.remove("hidden"):dom.adminFeeWrapper.classList.add("hidden")}),dom.cancelBtnModal.addEventListener("click",()=>dom.confirmationModal.classList.add("hidden")),dom.confirmBtnModal.addEventListener("click",saveTransaction),dom.exportBtn.addEventListener("click",exportToCSV),dom.dateFilter.addEventListener("change",()=>updateUI(allTransactions)),dom.resetFilterBtn.addEventListener("click",()=>{dom.dateFilter.value="",updateUI(allTransactions)})}catch(e){console.error("Init Gagal:",e),dom.loading.innerHTML='<p class="text-red-500 font-semibold">Gagal terhubung. Periksa konfigurasi Firebase Anda.</p>'}}
+        function showDeleteConfirmation(e){transactionToDelete=e;dom.deleteConfirmationModal.querySelector("#deleteDetail").textContent=`"${e.description}" (${formatCurrency(e.amount)})`;dom.deleteConfirmationModal.classList.remove("hidden")}
+        async function deleteTransaction(){if(!transactionToDelete)return;const e=doc(db,"transactions",transactionToDelete.id);try{await deleteDoc(e);dom.deleteConfirmationModal.classList.add("hidden");transactionToDelete=null}catch(e){console.error("Error delete:",e),showError("Gagal menghapus transaksi.")}}
+        
+        function exportToCSV(){const t=dom.dateFilter.value;let n=allTransactions;if(t){n=allTransactions.filter(e=>{if(!e.createdAt)return!1;return e.createdAt.toDate().toISOString().slice(0,10)===t})}if(n.length===0)return void showError("Tidak ada data untuk diexport pada filter ini.");const o=["Tanggal","Waktu","Tipe","Sumber","Jumlah","Biaya Admin","Keterangan"],a=n.map(e=>{const t=e.createdAt.toDate(),n=t.toLocaleDateString("id-ID",{day:"2-digit",month:"2-digit",year:"numeric"}),o=t.toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"}),a=`"${(e.description||"").replace(/"/g,'""')}"`;return[n,o,e.type,e.source||"",e.amount,e.adminFee,a].join(";")});const r=[o.join(";"),...a].join("\n"),i="﻿",s=new Blob([i+r],{type:"text/csv;charset=utf-8;"}),l=document.createElement("a"),d=URL.createObjectURL(s);l.setAttribute("href",d);const c=t||(new Date).toISOString().slice(0,10);l.setAttribute("download",`Riwayat_Transaksi_${c}.csv`),l.style.visibility="hidden",document.body.appendChild(l),l.click(),document.body.removeChild(l)}
+        
+        async function initialize(){if(!firebaseConfig.apiKey)return void(dom.loading.innerHTML='<p class="text-red-500 font-semibold text-center">KONFIGURASI FIREBASE KOSONG.</p>');try{const e=initializeApp(firebaseConfig),t=getAuth(e);db=getFirestore(e),await signInAnonymously(t),transactionsCollection=collection(db,"transactions");const n=query(transactionsCollection,orderBy("createdAt","desc"));onSnapshot(n,e=>{const t=e.docs.map(e=>({id:e.id,...e.data()}));updateUI(t),dom.loading.classList.add("hidden"),dom.mainContent.classList.remove("hidden")}),dom.depositBtn.addEventListener("click",()=>{setTransactionMode("setor"),prepareTransaction("setor")}),dom.withdrawBtn.addEventListener("click",()=>{setTransactionMode("tarik"),prepareTransaction("tarik")}),dom.transactionForm.addEventListener("submit",e=>{e.preventDefault(),prepareTransaction(currentTransactionType)}),dom.adminFeeToggle.addEventListener("change",e=>{e.target.value==="iya"?dom.adminFeeWrapper.classList.remove("hidden"):dom.adminFeeWrapper.classList.add("hidden")}),dom.confirmationModal.querySelector("#cancelBtnModal").addEventListener("click",()=>dom.confirmationModal.classList.add("hidden")),dom.confirmationModal.querySelector("#confirmBtnModal").addEventListener("click",saveTransaction),dom.exportBtn.addEventListener("click",exportToCSV),dom.dateFilter.addEventListener("change",()=>updateUI(allTransactions)),dom.resetFilterBtn.addEventListener("click",()=>{dom.dateFilter.value="",updateUI(allTransactions)});dom.historyList.addEventListener("click",e=>{const t=e.target.closest(".edit-btn"),n=e.target.closest(".delete-btn");if(t){const o=t.dataset.id,a=allTransactions.find(e=>e.id===o);a&&openEditModal(a)}if(n){const o=n.dataset.id,a=allTransactions.find(e=>e.id===o);a&&showDeleteConfirmation(a)}});dom.editModal.querySelector("#cancelEditBtn").addEventListener("click",()=>dom.editModal.classList.add("hidden"));dom.editModal.querySelector("#saveEditBtn").addEventListener("click",saveEdit);dom.deleteConfirmationModal.querySelector("#cancelDeleteBtn").addEventListener("click",()=>dom.deleteConfirmationModal.classList.add("hidden"));dom.deleteConfirmationModal.querySelector("#confirmDeleteBtn").addEventListener("click",deleteTransaction)}catch(e){console.error("Init Gagal:",e),dom.loading.innerHTML='<p class="text-red-500 font-semibold">Gagal terhubung. Periksa konfigurasi Firebase Anda.</p>'}}
         initialize();
     </script>
 </body>
