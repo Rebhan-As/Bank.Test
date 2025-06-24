@@ -66,7 +66,6 @@
                     <input type="text" id="description" class="block w-full rounded-md border-gray-300 px-4 py-3 text-lg focus:border-indigo-500 focus:ring-indigo-500" placeholder="Contoh: Tarik tunai Budi" required>
                 </div>
                 
-                <!-- Pilihan Biaya Admin (BARU) -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Gunakan Biaya Admin?</label>
                     <div id="adminFeeToggle" class="flex items-center space-x-4">
@@ -75,7 +74,6 @@
                     </div>
                 </div>
 
-                <!-- Wrapper untuk Input Biaya Admin (disembunyikan secara default) -->
                 <div id="adminFeeWrapper" class="hidden">
                     <label for="adminFee" class="block text-sm font-medium text-gray-700 mb-1">Jumlah Biaya Admin</label>
                     <div class="relative"><div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"><span class="text-gray-500 sm:text-sm">Rp</span></div><input type="number" id="adminFee" class="block w-full rounded-md border-gray-300 pl-10 pr-4 py-3 text-lg focus:border-indigo-500 focus:ring-indigo-500" placeholder="0"></div>
@@ -102,19 +100,20 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, query, onSnapshot, serverTimestamp, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- PENTING: GANTI DENGAN KONFIGURASI FIREBASE ANDA ---
+        // --- PENTING: GANTI DENGAN KONFIGURASI ANDA ---
+        // Salin konfigurasi dari Firebase Project Settings Anda dan tempel di sini.
         const firebaseConfig = {
-  apiKey: "AIzaSyApmezbFi-ntkp_J8T-b7uk2NTZeFuzBrI",
+            apiKey: "AIzaSyApmezbFi-ntkp_J8T-b7uk2NTZeFuzBrI",
   authDomain: "kasir-coba-e8862.firebaseapp.com",
   projectId: "kasir-coba-e8862",
   storageBucket: "kasir-coba-e8862.firebasestorage.app",
   messagingSenderId: "529514154178",
   appId: "1:529514154178:web:339fed8dac7e37c367135b",
   measurementId: "G-736R59S3P3"
-};
+        };
 
         // --- SELEKSI ELEMEN DOM ---
         const totalDepositTodayEl = document.getElementById('totalDepositToday');
@@ -130,8 +129,8 @@
         const loadingEl = document.getElementById('loading');
         const mainContentEl = document.getElementById('main-content');
         const transactionForm = document.getElementById('transactionForm');
-        const adminFeeToggle = document.getElementById('adminFeeToggle'); // Pilihan Iya/Tidak
-        const adminFeeWrapper = document.getElementById('adminFeeWrapper'); // Pembungkus input admin
+        const adminFeeToggle = document.getElementById('adminFeeToggle');
+        const adminFeeWrapper = document.getElementById('adminFeeWrapper');
 
         let db, transactionsCollection;
 
@@ -183,7 +182,6 @@
             }
         }
 
-        // --- FUNGSI UNTUK MENANGANI TRANSAKSI (DIPERBARUI) ---
         async function handleTransaction(type) {
             const amount = parseFloat(amountInput.value);
             const description = descriptionInput.value.trim();
@@ -193,7 +191,6 @@
             if (isNaN(amount) || amount <= 0) { showError('Jumlah transaksi harus valid.'); return; }
             if (!description) { showError('Keterangan wajib diisi.'); return; }
             
-            // Logika baru untuk biaya admin
             if (useAdminFee === 'iya') {
                 const adminFeeValue = parseFloat(adminFeeInput.value);
                 if (isNaN(adminFeeValue) || adminFeeValue <= 0) {
@@ -208,8 +205,8 @@
             depositBtn.disabled = true; withdrawBtn.disabled = true;
             try {
                 await addDoc(transactionsCollection, newTransaction);
-                transactionForm.reset(); // Mereset form, termasuk pilihan radio ke default
-                adminFeeWrapper.classList.add('hidden'); // Sembunyikan lagi input admin setelah submit
+                transactionForm.reset();
+                adminFeeWrapper.classList.add('hidden');
                 amountInput.focus();
             } catch (error) {
                 console.error("Error: ", error); showError("Gagal menyimpan. Cek koneksi.");
@@ -227,11 +224,8 @@
                 const app = initializeApp(firebaseConfig);
                 const auth = getAuth(app);
                 db = getFirestore(app);
-                const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-                if (token) { await signInWithCustomToken(auth, token); } else { await signInAnonymously(auth); }
-                const appId = (typeof __app_id !== 'undefined') ? __app_id : firebaseConfig.appId;
-                const finalCollectionPath = (typeof __app_id !== 'undefined') ? `/artifacts/${appId}/public/data/transactions` : "transactions";
-                transactionsCollection = collection(db, finalCollectionPath);
+                await signInAnonymously(auth);
+                transactionsCollection = collection(db, "transactions");
                 const q = query(transactionsCollection, orderBy("createdAt", "desc"));
                 onSnapshot(q, (snapshot) => {
                     const transactions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -239,12 +233,10 @@
                     loadingEl.classList.add('hidden'); mainContentEl.classList.remove('hidden');
                 });
                 
-                // Event Listener untuk tombol dan form
                 depositBtn.addEventListener('click', () => handleTransaction('setor'));
                 withdrawBtn.addEventListener('click', () => handleTransaction('tarik'));
                 transactionForm.addEventListener('submit', (e) => { e.preventDefault(); handleTransaction('setor'); });
                 
-                // Event Listener untuk pilihan biaya admin
                 adminFeeToggle.addEventListener('change', (e) => {
                     if (e.target.value === 'iya') {
                         adminFeeWrapper.classList.remove('hidden');
