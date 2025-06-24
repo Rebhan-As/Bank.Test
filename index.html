@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aplikasi Kasir Online - Versi Bersih</title>
+    <title>Aplikasi Kasir Online - Export Excel</title>
     <!-- Memuat Tailwind CSS untuk styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Memuat Google Fonts: Inter -->
@@ -45,21 +45,7 @@
             </div>
 
             <form id="transactionForm" class="border-t border-gray-200 pt-6 space-y-4">
-                <div id="sourceWrapper">
-                    <label for="sourceSelect" class="block text-sm font-medium text-gray-700 mb-1">Sumber Transaksi</label>
-                    <select id="sourceSelect" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 py-3 px-4 text-lg">
-                        <option>Uang Tunai</option>
-                        <option>BRI</option>
-                        <option>BCA</option>
-                        <option>Seabank</option>
-                        <option>Dana</option>
-                        <option>Gopay</option>
-                        <option>Digipos</option>
-                        <option>Order Quota</option>
-                        <option>Simpel</option>
-                    </select>
-                </div>
-
+                <div id="sourceWrapper"><label for="sourceSelect" class="block text-sm font-medium text-gray-700 mb-1">Sumber Transaksi</label><select id="sourceSelect" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 py-3 px-4 text-lg"><option>Uang Tunai</option><option>BRI</option><option>BCA</option><option>Seabank</option><option>Dana</option><option>Gopay</option><option>Digipos</option><option>Order Quota</option><option>Simpel</option></select></div>
                 <div><label for="amount" class="block text-sm font-medium text-gray-700 mb-1">Jumlah Transaksi</label><div class="relative"><div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"><span class="text-gray-500 sm:text-sm">Rp</span></div><input type="number" id="amount" class="block w-full rounded-md border-gray-300 pl-10 pr-4 py-3 text-lg focus:border-indigo-500 focus:ring-indigo-500" placeholder="0" required></div></div>
                 <div><label for="description" class="block text-sm font-medium text-gray-700 mb-1">Keterangan (Wajib Diisi)</label><input type="text" id="description" class="block w-full rounded-md border-gray-300 px-4 py-3 text-lg focus:border-indigo-500 focus:ring-indigo-500" placeholder="Contoh: Tarik tunai Budi" required></div>
                 <div><label class="block text-sm font-medium text-gray-700 mb-2">Gunakan Biaya Admin?</label><div id="adminFeeToggle" class="flex items-center space-x-4"><label class="flex items-center"><input type="radio" name="useAdminFee" value="tidak" class="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500" checked> <span class="ml-2 text-gray-700">Tidak</span></label><label class="flex items-center"><input type="radio" name="useAdminFee" value="iya" class="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"> <span class="ml-2 text-gray-700">Iya</span></label></div></div>
@@ -67,7 +53,18 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4"><button type="button" id="depositBtn" class="flex items-center justify-center w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md disabled:opacity-50 disabled:cursor-not-allowed">Setor Tunai</button><button type="button" id="withdrawBtn" class="flex items-center justify-center w-full bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md disabled:opacity-50 disabled:cursor-not-allowed">Tarik Tunai</button></div>
             </form>
             <div id="errorMessage" class="hidden text-center text-red-600 font-medium p-2 rounded-lg bg-red-50"></div>
-            <div class="border-t border-gray-200 pt-6"><h3 class="text-lg font-semibold text-gray-800 mb-4 text-center">Riwayat Semua Transaksi</h3><div id="historyList" class="max-h-64 overflow-y-auto space-y-3 pr-2"><p id="noHistory" class="text-center text-gray-500">Belum ada transaksi.</p></div></div>
+            
+            <div class="border-t border-gray-200 pt-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-gray-800">Riwayat Semua Transaksi</h3>
+                    <!-- Tombol Export (BARU) -->
+                    <button id="exportBtn" class="flex items-center bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg text-sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                        Export ke Excel
+                    </button>
+                </div>
+                <div id="historyList" class="max-h-64 overflow-y-auto space-y-3 pr-2"><p id="noHistory" class="text-center text-gray-500">Belum ada transaksi.</p></div>
+            </div>
         </div>
         <div id="loading" class="flex flex-col items-center justify-center p-8"><div class="loader"></div><p class="text-gray-500 mt-4">Menghubungkan ke database online...</p></div>
     </div>
@@ -110,14 +107,18 @@
         // --- SELEKSI ELEMEN DOM ---
         const totalDepositTodayEl=document.getElementById("totalDepositToday"),totalWithdrawalTodayEl=document.getElementById("totalWithdrawalToday"),totalAdminFeeTodayEl=document.getElementById("totalAdminFeeToday"),amountInput=document.getElementById("amount"),descriptionInput=document.getElementById("description"),adminFeeInput=document.getElementById("adminFee"),sourceSelect=document.getElementById("sourceSelect"),depositBtn=document.getElementById("depositBtn"),withdrawBtn=document.getElementById("withdrawBtn"),historyListEl=document.getElementById("historyList"),errorMessageEl=document.getElementById("errorMessage"),loadingEl=document.getElementById("loading"),mainContentEl=document.getElementById("main-content"),transactionForm=document.getElementById("transactionForm"),adminFeeToggle=document.getElementById("adminFeeToggle"),adminFeeWrapper=document.getElementById("adminFeeWrapper"),sourceWrapper=document.getElementById("sourceWrapper");
         const confirmationModal=document.getElementById("confirmationModal"),confirmType=document.getElementById("confirmType"),confirmSource=document.getElementById("confirmSource"),confirmAmount=document.getElementById("confirmAmount"),confirmDescription=document.getElementById("confirmDescription"),confirmAdminFee=document.getElementById("confirmAdminFee"),cancelBtnModal=document.getElementById("cancelBtnModal"),confirmBtnModal=document.getElementById("confirmBtnModal");
+        const exportBtn = document.getElementById('exportBtn'); // Tombol Export
 
         let db, transactionsCollection, pendingTransaction = null, currentTransactionType = 'setor';
+        let allTransactions = []; // Variabel untuk menyimpan semua data transaksi untuk export
 
         function formatCurrency(e){return new Intl.NumberFormat("id-ID",{style:"currency",currency:"IDR",minimumFractionDigits:0}).format(e)}
         function isToday(e){if(!e)return!1;const t=e.toDate(),n=new Date;return t.getDate()===n.getDate()&&t.getMonth()===n.getMonth()&&t.getFullYear()===n.getFullYear()}
         function showError(e){errorMessageEl.textContent=e,errorMessageEl.classList.remove("hidden"),setTimeout(()=>{errorMessageEl.classList.add("hidden")},4e3)}
         
-        function updateUI(e){let t=0,n=0,o=0;e.forEach(e=>{isToday(e.createdAt)&&("setor"===e.type?t+=e.amount:n+=e.amount,o+=e.adminFee)}),totalDepositTodayEl.textContent=formatCurrency(t),totalWithdrawalTodayEl.textContent=formatCurrency(n),totalAdminFeeTodayEl.textContent=formatCurrency(o),historyListEl.innerHTML="",0===e.length?historyListEl.innerHTML='<p class="text-center text-gray-500">Belum ada transaksi.</p>':e.forEach(e=>{const t=e.createdAt.toDate(),n=e.source?`<p class="text-sm text-gray-500">Sumber: <strong>${e.source}</strong></p>`:"",o=`\n                        <div class="flex justify-between items-start bg-gray-50 p-3 rounded-lg">\n                            <div class="flex-grow">\n                                <p class="font-semibold capitalize">${e.type} Tunai</p>\n                                <p class="text-sm italic text-gray-600">${e.description||""}</p>\n                                ${n}\n                                <p class="text-xs text-gray-500 mt-1">${t.toLocaleString("id-ID",{dateStyle:"full",timeStyle:"short"})}</p>\n                            </div>\n                            <div class="text-right flex-shrink-0 ml-4">\n                                <p class="font-semibold ${"setor"===e.type?"text-green-600":"text-red-600"}">${"setor"===e.type?"+":"-"} ${formatCurrency(e.amount)}</p>\n                                ${e.adminFee>0?`<p class="text-xs text-gray-400">Biaya Admin: ${formatCurrency(e.adminFee)}</p>`:""}\n                            </div>\n                        </div>`;historyListEl.insertAdjacentHTML("beforeend",o)})}
+        function updateUI(e){
+            allTransactions = e; // Simpan semua transaksi ke variabel global
+            let t=0,n=0,o=0;e.forEach(e=>{isToday(e.createdAt)&&("setor"===e.type?t+=e.amount:n+=e.amount,o+=e.adminFee)}),totalDepositTodayEl.textContent=formatCurrency(t),totalWithdrawalTodayEl.textContent=formatCurrency(n),totalAdminFeeTodayEl.textContent=formatCurrency(o),historyListEl.innerHTML="",0===e.length?historyListEl.innerHTML='<p class="text-center text-gray-500">Belum ada transaksi.</p>':e.forEach(e=>{const t=e.createdAt.toDate(),n=e.source?`<p class="text-sm text-gray-500">Sumber: <strong>${e.source}</strong></p>`:"",o=`\n                        <div class="flex justify-between items-start bg-gray-50 p-3 rounded-lg">\n                            <div class="flex-grow">\n                                <p class="font-semibold capitalize">${e.type} Tunai</p>\n                                <p class="text-sm italic text-gray-600">${e.description||""}</p>\n                                ${n}\n                                <p class="text-xs text-gray-500 mt-1">${t.toLocaleString("id-ID",{dateStyle:"full",timeStyle:"short"})}</p>\n                            </div>\n                            <div class="text-right flex-shrink-0 ml-4">\n                                <p class="font-semibold ${"setor"===e.type?"text-green-600":"text-red-600"}">${"setor"===e.type?"+":"-"} ${formatCurrency(e.amount)}</p>\n                                ${e.adminFee>0?`<p class="text-xs text-gray-400">Biaya Admin: ${formatCurrency(e.adminFee)}</p>`:""}\n                            </div>\n                        </div>`;historyListEl.insertAdjacentHTML("beforeend",o)})}
         
         function showConfirmation(e){
             pendingTransaction = e;
@@ -169,6 +170,51 @@
                 sourceLabel.textContent = "Sumber Tarik Tunai";
             }
         }
+
+        // --- FUNGSI EXPORT KE CSV (BARU) ---
+        function exportToCSV() {
+            if (allTransactions.length === 0) {
+                showError("Tidak ada data untuk diexport.");
+                return;
+            }
+
+            const headers = ["Tanggal", "Waktu", "Tipe", "Sumber", "Jumlah", "Biaya Admin", "Keterangan"];
+            
+            // Mengubah setiap objek transaksi menjadi baris CSV
+            const rows = allTransactions.map(trx => {
+                const date = trx.createdAt.toDate();
+                const formattedDate = date.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                const formattedTime = date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+
+                // Menangani koma di dalam keterangan dengan mengapitnya dalam tanda kutip
+                const description = `"${(trx.description || '').replace(/"/g, '""')}"`;
+
+                return [
+                    formattedDate,
+                    formattedTime,
+                    trx.type,
+                    trx.source || '', // Jika sumber tidak ada (misal pada tarik tunai versi lama)
+                    trx.amount,
+                    trx.adminFee,
+                    description
+                ].join(',');
+            });
+
+            // Menggabungkan header dan baris-baris data
+            const csvContent = [headers.join(','), ...rows].join('\n');
+            
+            // Membuat dan mengunduh file
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            const today = new Date().toISOString().slice(0, 10);
+            link.setAttribute("download", `Riwayat_Transaksi_${today}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
         
         async function initialize(){
             if(!firebaseConfig.apiKey){
@@ -187,9 +233,6 @@
                     updateUI(transactions);
                     loadingEl.classList.add('hidden');
                     mainContentEl.classList.remove('hidden');
-                }, (error) => {
-                     console.error("Firebase Error:", error);
-                     loadingEl.innerHTML = `<p class="text-red-500 font-semibold text-center">Error: ${error.message}. Coba refresh.</p>`;
                 });
                 
                 depositBtn.addEventListener("click",()=>{ setTransactionMode('setor'); prepareTransaction("setor") });
@@ -199,6 +242,7 @@
                 
                 cancelBtnModal.addEventListener("click",()=>confirmationModal.classList.add("hidden"));
                 confirmBtnModal.addEventListener("click",saveTransaction);
+                exportBtn.addEventListener("click", exportToCSV); // Event listener untuk tombol export
 
             } catch (error) {
                 console.error("Init Gagal:", error);
@@ -209,3 +253,4 @@
     </script>
 </body>
 </html>
+
